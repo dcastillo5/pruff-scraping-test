@@ -20,7 +20,6 @@ s3_prefix = "pruff-scraping"
 region = "us-east-1"
 disable_rollback = true
 image_repositories = []
-parameter_overrides = "ParameterKey=\"API_MAILER_SEND_KEY,ParameterValue=mlsn.7415d36718c0a5318342c296fe6fb1c8d673a0bbc56824455e8b5da002840c7f\""
 
 [default.package.parameters]
 resolve_s3 = true
