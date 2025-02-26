@@ -1,0 +1,354 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless application that uses Chromium in AWS Lambda to scrape a website
+
+Resources:
+
+  # Based on https://github.com/Sparticuz/chromium/blob/master/examples/aws-sam/template.yml
+  # ChromiumLayer is a layer that contains the chromium binary
+  ChromiumLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      Description: Chromium with Node.js integration for AWS Lambda
+      ContentUri: layers/chromium
+      CompatibleRuntimes:
+        - &nodejsRuntime nodejs18.x
+      CompatibleArchitectures:
+        - &chromiumArch x86_64
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: *nodejsRuntime
+      BuildArchitecture: *chromiumArch
+
+  # Lambda function config associated with the source code: getPropertiesFuntion/
+  getPropertiesFuntion:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/getProperties.getPropertiesHandler
+      Runtime: *nodejsRuntime
+      Architectures:
+        - *chromiumArch
+      Layers:
+        - !Ref ChromiumLayer
+      Timeout: 100
+      MemorySize: 1024
+      Description: A get method to get all properties scraping a website
+      Policies:
+        # Give Create/Read/Update/Delete Permissions to the UserDataTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref UserDataTable
+      Environment:
+        Variables:
+          # Make table name accessible as environment variable from function code during execution
+          USERS_TABLE: !Ref UserDataTable
+          DB_ENDPOINT_OVERRIDE: ""
+          JWT_KEY: ""
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /properties
+            Method: GET
+    #Based on https://github.com/aws/aws-sam-cli-app-templates/blob/master/nodejs22.x/hello-ts/%7B%7Bcookiecutter.project_name%7D%7D/template.yaml
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - handlers/getProperties.ts
+        External:
+        - "@sparticuz/chromium"
+
+  # Lambda function config associated with the source code: sendEmail/
+  sendEmailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/sendEmail.sendEmailHandler
+      Runtime: *nodejsRuntime
+      Architectures:
+      - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Description: A post method to send an email
+      Policies:
+        # Give Create/Read/Update/Delete Permissions to the UserDataTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref UserDataTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref SearchHistoryTable
+      Environment:
+        Variables:
+          # Make table name accessible as environment variable from function code during execution
+          USERS_TABLE: !Ref UserDataTable
+          SEARCH_HISTORY_TABLE: !Ref SearchHistoryTable
+          DB_ENDPOINT_OVERRIDE: ""
+          JWT_KEY: "$"
+          API_MAILER_SEND_KEY: ""
+          ADMIN_EMAIL: "dcastillo5@uc.cl"
+    #Based on https://github.com/aws/aws-sam-cli-app-templates/blob/master/nodejs22.x/hello-ts/%7B%7Bcookiecutter.project_name%7D%7D/template.yaml
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - handlers/sendEmail.ts
+
+  # Lambda function config associated with the source code: putSearchHistory/
+  putSearchHistoryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/putSearchHistory.putSearchHistoryHandler
+      Runtime: *nodejsRuntime
+      Architectures:
+      - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Description: A post method to put a search history
+      Policies:
+        # Give Create/Read/Update/Delete Permissions to the UserDataTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref UserDataTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref SearchHistoryTable
+      Environment:
+        Variables:
+          # Make table name accessible as environment variable from function code during execution
+          USERS_TABLE: !Ref UserDataTable
+          SEARCH_HISTORY_TABLE: !Ref SearchHistoryTable
+          DB_ENDPOINT_OVERRIDE: ""
+          JWT_KEY: ""
+          API_MAILER_SEND_KEY: ""
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /search-history
+            Method: POST
+    #Based on https://github.com/aws/aws-sam-cli-app-templates/blob/master/nodejs22.x/hello-ts/%7B%7Bcookiecutter.project_name%7D%7D/template.yaml
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - handlers/putSearchHistory.ts
+
+  # Lambda function config associated with the source code: putFavoriteProperty/
+  putFavoritePropertyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/putFavoriteProperty.putFavoritePropertyHandler
+      Runtime: *nodejsRuntime
+      Architectures:
+      - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Description: A post method to toggle a favorite property
+      Policies:
+        # Give Create/Read/Update/Delete Permissions to the UserDataTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref UserDataTable
+      Environment:
+        Variables:
+          # Make table name accessible as environment variable from function code during execution
+          USERS_TABLE: !Ref UserDataTable
+          DB_ENDPOINT_OVERRIDE: ""
+          JWT_KEY: ""
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /favorite
+            Method: POST
+    #Based on https://github.com/aws/aws-sam-cli-app-templates/blob/master/nodejs22.x/hello-ts/%7B%7Bcookiecutter.project_name%7D%7D/template.yaml
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - handlers/putFavoriteProperty.ts
+
+  # Lambda function config associated with the source code: signup/
+  signupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/signup.signupHandler
+      Runtime: *nodejsRuntime
+      Architectures:
+      - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Description: A post method to sign up a user
+      Policies:
+        # Give Create/Read/Update/Delete Permissions to the UserDataTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref UserDataTable
+      Environment:
+        Variables:
+          # Make table name accessible as environment variable from function code during execution
+          USERS_TABLE: !Ref UserDataTable
+          DB_ENDPOINT_OVERRIDE: ""
+          JWT_KEY: ""
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /signup
+            Method: POST
+    #Based on https://github.com/aws/aws-sam-cli-app-templates/blob/master/nodejs22.x/hello-ts/%7B%7Bcookiecutter.project_name%7D%7D/template.yaml
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - handlers/signup.ts
+
+  # Lambda function config associated with the source code: login/
+  loginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: handlers/login.loginHandler
+      Runtime: *nodejsRuntime
+      Architectures:
+      - x86_64
+      MemorySize: 128
+      Timeout: 100
+      Description: A post method to log in a user
+      Policies:
+        # Give Create/Read/Update/Delete Permissions to the UserDataTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref UserDataTable
+      Environment:
+        Variables:
+          # Make table name accessible as environment variable from function code during execution
+          USERS_TABLE: !Ref UserDataTable
+          DB_ENDPOINT_OVERRIDE: ""
+          JWT_KEY: ""
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /login
+            Method: POST
+    #Based on https://github.com/aws/aws-sam-cli-app-templates/blob/master/nodejs22.x/hello-ts/%7B%7Bcookiecutter.project_name%7D%7D/template.yaml
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints: 
+        - handlers/login.ts
+
+  # DynamoDB table to store users
+  UserDataTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: email
+        Type: String
+      TableName: users
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+
+  # DynamoDB table to store users search history
+  SearchHistoryTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      PrimaryKey:
+        Name: email#date
+        Type: String
+      TableName: searchHistory
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+
+  # S3 Bucket to host single page app website
+  WebSiteBucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+      VersioningConfiguration:
+        Status: Enabled
+  WebSiteBucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: !Ref WebSiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Id: "PolicyForCloudFrontPrivateContent"
+        Statement:
+        - Sid: "AllowCloudFrontServicePrincipal"
+          Effect: "Allow"
+          Principal:
+            Service: "cloudfront.amazonaws.com"
+          Action: "s3:GetObject"
+          Resource: !Join [ "", [ "arn:aws:s3:::", !Ref WebSiteBucket, "/*" ] ]
+          Condition:
+            StringEquals:
+              "AWS:SourceArn": !Join [ "", [ "arn:aws:cloudfront::", !Ref "AWS::AccountId", ":distribution/", !Ref CloudFrontDistribution ] ]
+  
+  # CloudFront Distribution for hosting the single page app website
+  CloudFrontDistribution:
+    Type: "AWS::CloudFront::Distribution"
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName: !GetAtt WebSiteBucket.RegionalDomainName
+          Id: "myS3Origin"
+          OriginAccessControlId: !GetAtt CloudFrontOriginAccessControl.Id
+          S3OriginConfig: 
+            OriginAccessIdentity: ""
+        Enabled: true
+        DefaultRootObject: "index.html"
+        HttpVersion: "http2"
+        DefaultCacheBehavior:
+          AllowedMethods:
+          - "DELETE"
+          - "GET"
+          - "HEAD"
+          - "OPTIONS"
+          - "PATCH"
+          - "POST"
+          - "PUT"
+          CachedMethods:
+          - "GET"
+          - "HEAD"
+          TargetOriginId: "myS3Origin"
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: "none"
+          ViewerProtocolPolicy: "allow-all"
+          MinTTL: 0
+          DefaultTTL: 3600
+          MaxTTL: 86400
+        PriceClass: "PriceClass_200"
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+  CloudFrontOriginAccessControl:
+    Type: "AWS::CloudFront::OriginAccessControl"
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${WebSiteBucket} OAC"
+        OriginAccessControlOriginType: "s3"
+        SigningBehavior: "always"
+        SigningProtocol: "sigv4"
