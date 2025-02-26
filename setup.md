@@ -15,13 +15,13 @@ El frontend esta desarrollado en React.js y TypeScript, utilizando componentes d
 ## Setup
 
 1. Instalar SAM CLI, Docker y Node.js como se indica en [Deploy the sample application
-](./backend/README.md/#deploy-the-sample-application)
+](README.md/#deploy-the-sample-application)
 2. Crear el archivo `.env` en la carpeta `frontend`con las variables de entorno del archivo `frontend/.env.example`
 3. Completar las variables de entorno en el archivo `backend/env.json`
 
 ## Local Development
 
-Seguir los pasos de [Test locally with dynamodb](./backend/README.md/#test-locally-with-dynamodb)
+Seguir los pasos de [Test locally with dynamodb](README.md#test-locally-with-dynamodb)
 
 1. Correr el backend con `sam local start-api --env-vars env.json`
 2. Correr el frontend con `npm run start`
@@ -31,8 +31,8 @@ Seguir los pasos de [Test locally with dynamodb](./backend/README.md/#test-local
 
 Reemplazar las variables de entorno en el archivo `template.yaml` para todos los recursos de AWS.
 
-Para el backend seguir los pasos del [Deploy the sample application](./backend/README.md/#deploy-the-sample-application)
-Para el frontend seguir los pasos del [Deploy frontend](./frontend/README.md/#deploy-frontend)
+Para el backend seguir los pasos del [Deploy the sample application](README.md/#deploy-the-sample-application)
+Para el frontend seguir los pasos del [Deploy frontend](README.md/#deploy-frontend)
 
 ## Recursos
 Para crear este proyecto se utilizo la siguiente documentacion:
